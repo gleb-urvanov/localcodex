@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+DEFAULT_MODEL="qwen3.5:9b"
+DEFAULT_CONTEXT_WINDOW="8192"
+
+model="${CODEX_OLLAMA_MODEL:-$DEFAULT_MODEL}"
+context_window="${CODEX_CONTEXT_WINDOW:-$DEFAULT_CONTEXT_WINDOW}"
+
+status=0
+
+check_binary() {
+  local name="$1"
+  if command -v "$name" >/dev/null 2>&1; then
+    printf "[ok] %s: %s\n" "$name" "$(command -v "$name")"
+  else
+    printf "[missing] %s is not in PATH\n" "$name"
+    status=1
+  fi
+}
+
+printf "Configured model: %s\n" "$model"
+printf "Configured context window: %s\n" "$context_window"
+
+check_binary codex
+check_binary ollama
+
+if command -v ollama >/dev/null 2>&1; then
+  if ollama list >/tmp/codex-local-ollama-list.txt 2>/tmp/codex-local-ollama-list.err; then
+    printf "[ok] ollama service responded\n"
+    if grep -F "$model" /tmp/codex-local-ollama-list.txt >/dev/null 2>&1; then
+      printf "[ok] model is installed: %s\n" "$model"
+    else
+      printf "[warn] model is not installed locally: %s\n" "$model"
+      printf "       install with: ollama pull %s\n" "$model"
+      status=1
+    fi
+  else
+    printf "[warn] ollama is installed but the service did not respond\n"
+    printf "       start it with: ollama serve\n"
+    if [[ -s /tmp/codex-local-ollama-list.err ]]; then
+      printf "       details: %s\n" "$(tr '\n' ' ' </tmp/codex-local-ollama-list.err)"
+    fi
+    status=1
+  fi
+fi
+
+exit "$status"

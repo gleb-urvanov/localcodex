@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+DEFAULT_MODEL="qwen3.5:9b"
+DEFAULT_CONTEXT_WINDOW="8192"
+
+model="${CODEX_OLLAMA_MODEL:-$DEFAULT_MODEL}"
+context_window="${CODEX_CONTEXT_WINDOW:-$DEFAULT_CONTEXT_WINDOW}"
+
+declare -a passthrough=()
+
+while (($#)); do
+  case "$1" in
+    --local-provider)
+      if (($# < 2)); then
+        echo "codex-local: --local-provider requires a value" >&2
+        exit 2
+      fi
+      if [[ "$2" != "ollama" ]]; then
+        echo "codex-local: this harness is fixed to --local-provider ollama" >&2
+        exit 2
+      fi
+      shift 2
+      ;;
+    --local-provider=*)
+      if [[ "${1#*=}" != "ollama" ]]; then
+        echo "codex-local: this harness is fixed to --local-provider ollama" >&2
+        exit 2
+      fi
+      shift
+      ;;
+    --context-window)
+      if (($# < 2)); then
+        echo "codex-local: --context-window requires a value" >&2
+        exit 2
+      fi
+      context_window="$2"
+      shift 2
+      ;;
+    --context-window=*)
+      context_window="${1#*=}"
+      shift
+      ;;
+    --model)
+      if (($# < 2)); then
+        echo "codex-local: --model requires a value" >&2
+        exit 2
+      fi
+      model="$2"
+      passthrough+=("$1" "$2")
+      shift 2
+      ;;
+    -m)
+      if (($# < 2)); then
+        echo "codex-local: -m requires a value" >&2
+        exit 2
+      fi
+      model="$2"
+      passthrough+=("$1" "$2")
+      shift 2
+      ;;
+    *)
+      passthrough+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if ! [[ "$context_window" =~ ^[0-9]+$ ]]; then
+  echo "codex-local: context window must be a positive integer" >&2
+  exit 2
+fi
+
+codex_bin="$(command -v codex || true)"
+if [[ -z "$codex_bin" ]]; then
+  echo "codex-local: codex was not found in PATH" >&2
+  exit 127
+fi
+
+declare -a cmd=("$codex_bin" "--oss" "--local-provider" "ollama")
+
+has_model_flag=0
+has_context_override=0
+
+for ((i = 0; i < ${#passthrough[@]}; i++)); do
+  arg="${passthrough[$i]}"
+
+  case "$arg" in
+    --model|-m)
+      has_model_flag=1
+      ;;
+    --model=*|-m=*)
+      has_model_flag=1
+      ;;
+    -c|--config)
+      if ((i + 1 < ${#passthrough[@]})); then
+        next_arg="${passthrough[$((i + 1))]}"
+        if [[ "$next_arg" == model_context_window=* ]]; then
+          has_context_override=1
+        elif [[ "$next_arg" == model_provider=* || "$next_arg" == oss_provider=* ]]; then
+          echo "codex-local: provider overrides are not allowed in this harness" >&2
+          exit 2
+        fi
+      fi
+      ;;
+    -c=*|--config=*)
+      inline_config="${arg#*=}"
+      if [[ "$inline_config" == model_context_window=* ]]; then
+        has_context_override=1
+      elif [[ "$inline_config" == model_provider=* || "$inline_config" == oss_provider=* ]]; then
+        echo "codex-local: provider overrides are not allowed in this harness" >&2
+        exit 2
+      fi
+      ;;
+  esac
+done
+
+if ((has_model_flag == 0)); then
+  cmd+=("--model" "$model")
+fi
+
+if ((has_context_override == 0)); then
+  cmd+=("-c" "model_context_window=$context_window")
+fi
+
+cmd+=("${passthrough[@]}")
+
+exec "${cmd[@]}"

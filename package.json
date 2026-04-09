@@ -1,0 +1,11 @@
+{
+  "name": "localcodex-ollama-harness",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Thin launcher that runs the real Codex CLI against a local Ollama model.",
+  "scripts": {
+    "codex:local": "./bin/codex-local",
+    "codex:local:doctor": "./bin/codex-local-doctor",
+    "telegram:bot": "node ./src/telegram-bot.js"
+  }
+}
