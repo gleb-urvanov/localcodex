@@ -47,6 +47,12 @@ This preserves Codex-native behavior:
 - `package.json`
   - Convenience npm scripts so the harness can be invoked consistently.
 
+Telegram bot defaults:
+
+- workspace: `.local/telegram-bot/workspace`
+- data: `.local/telegram-bot/data`
+- bot Codex home: `.local/telegram-bot/codex-home`
+
 ## Parameter Model
 
 Runtime parameters can come from either environment variables or wrapper flags.

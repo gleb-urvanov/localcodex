@@ -21,8 +21,9 @@ Any normal text message is sent to the active conversation.
 
 ## Session Model
 
-The bot keeps its own per-chat conversation registry in `.local/telegram-bot/state.json`.
-Codex sessions used by the bot live in a separate local `CODEX_HOME`, so bot conversations do not attach to cloud-backed Codex sessions.
+The bot keeps its own per-chat conversation registry in `.local/telegram-bot/data/state.json`.
+Codex sessions used by the bot live in `.local/telegram-bot/codex-home`, so bot conversations do not attach to cloud-backed Codex sessions.
+The default bot workspace is `.local/telegram-bot/workspace`, so the bot does not operate on the harness project root unless you explicitly point it elsewhere.
 
 Each bot conversation stores:
 

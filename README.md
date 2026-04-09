@@ -55,6 +55,9 @@ npm run telegram:bot
 - `CODEX_HOME`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_IDS`
+- `CODEX_TELEGRAM_WORKSPACE`
+- `CODEX_TELEGRAM_DATA_DIR`
+- `CODEX_TELEGRAM_CODEX_HOME`
 
 ## Notes
 
@@ -65,6 +68,7 @@ npm run telegram:bot
 - It preserves normal Codex features such as subcommands, MCP, approvals, and sandboxing.
 - You still need Ollama installed locally and the selected model available.
 - Telegram support is implemented in [src/telegram-bot.js](/Users/gleburvanov/Workspace/localcodex/src/telegram-bot.js).
+- The Telegram bot defaults to isolated project-local paths under `.local/telegram-bot/` for workspace, data, and Codex home.
 
 See [LOCAL_OLLAMA_CODEX_SYSTEM.md](/Users/gleburvanov/Workspace/localcodex/LOCAL_OLLAMA_CODEX_SYSTEM.md) for the structure and design.
 See [TELEGRAM_BOT.md](/Users/gleburvanov/Workspace/localcodex/TELEGRAM_BOT.md) for Telegram bot behavior.

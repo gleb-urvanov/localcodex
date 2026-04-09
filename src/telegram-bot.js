@@ -14,14 +14,16 @@ const {
 const { runCodexTurn } = require("./lib/codex");
 
 const ROOT = path.resolve(__dirname, "..");
-const DATA_DIR = process.env.CODEX_TELEGRAM_DATA_DIR || path.join(ROOT, ".local", "telegram-bot");
+const BOT_ROOT = path.join(ROOT, ".local", "telegram-bot");
+const DATA_DIR = process.env.CODEX_TELEGRAM_DATA_DIR || path.join(BOT_ROOT, "data");
 const STATE_PATH = path.join(DATA_DIR, "state.json");
 const CODEX_HOME =
   process.env.CODEX_TELEGRAM_CODEX_HOME || path.join(DATA_DIR, "codex-home");
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MODEL = process.env.CODEX_OLLAMA_MODEL || "qwen3.5:9b";
 const CONTEXT_WINDOW = Number(process.env.CODEX_CONTEXT_WINDOW || "8192");
-const WORKSPACE_ROOT = process.env.CODEX_TELEGRAM_WORKSPACE || ROOT;
+const WORKSPACE_ROOT =
+  process.env.CODEX_TELEGRAM_WORKSPACE || path.join(BOT_ROOT, "workspace");
 const CODEX_BIN = process.env.CODEX_LOCAL_BIN || path.join(ROOT, "bin", "codex-local");
 const ALLOWED_CHAT_IDS = new Set(
   (process.env.TELEGRAM_ALLOWED_CHAT_IDS || "")
@@ -60,6 +62,7 @@ if (!BOT_TOKEN) {
 
 ensureDir(DATA_DIR);
 ensureDir(CODEX_HOME);
+ensureDir(WORKSPACE_ROOT);
 
 let updateOffset = 0;
 let turnQueue = Promise.resolve();
