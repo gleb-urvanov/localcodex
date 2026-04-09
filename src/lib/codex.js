@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const path = require("node:path");
 const { spawn } = require("node:child_process");
 
 function readSessionIndex(codexHome) {
