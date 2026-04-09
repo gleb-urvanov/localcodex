@@ -51,6 +51,8 @@ npm run telegram:bot
 
 - `CODEX_OLLAMA_MODEL`
 - `CODEX_CONTEXT_WINDOW`
+- `CODEX_LOCAL_HOME`
+- `CODEX_HOME`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_IDS`
 
@@ -58,6 +60,8 @@ npm run telegram:bot
 
 - The harness executes the installed `codex` binary directly.
 - It forces `--oss --local-provider ollama`.
+- By default it uses a dedicated local `CODEX_HOME` at `.local/codex-home`.
+- `exec resume` is only allowed inside a harness-managed local home, which prevents accidental reuse of cloud-backed sessions.
 - It preserves normal Codex features such as subcommands, MCP, approvals, and sandboxing.
 - You still need Ollama installed locally and the selected model available.
 - Telegram support is implemented in [src/telegram-bot.js](/Users/gleburvanov/Workspace/localcodex/src/telegram-bot.js).

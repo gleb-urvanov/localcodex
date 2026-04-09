@@ -1,6 +1,4 @@
 const fs = require("node:fs");
-const os = require("node:os");
-const path = require("node:path");
 const { spawn } = require("node:child_process");
 
 function readSessionIndex(codexHome) {
@@ -29,24 +27,6 @@ function readSessionIndex(codexHome) {
   }
 }
 
-function resolveSessionId(beforeIndex, afterIndex, knownSessionIds) {
-  const beforeIds = new Set(beforeIndex.map((entry) => entry.id));
-
-  const directMatch = afterIndex.find((entry) => !beforeIds.has(entry.id));
-  if (directMatch) {
-    return directMatch.id;
-  }
-
-  const knownIds = new Set(knownSessionIds.filter(Boolean));
-  const fallback = [...afterIndex]
-    .filter((entry) => !knownIds.has(entry.id))
-    .sort((left, right) => {
-      return new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime();
-    })[0];
-
-  return fallback ? fallback.id : null;
-}
-
 function sanitizeOutput(text) {
   return text.replace(/\r/g, "").trim();
 }
@@ -62,10 +42,6 @@ function runCodexTurn({
 }) {
   return new Promise((resolve, reject) => {
     const beforeIndex = readSessionIndex(codexHome);
-    const outputPath = path.join(
-      os.tmpdir(),
-      `codex-local-bot-output-${Date.now()}-${Math.random().toString(16).slice(2)}.txt`,
-    );
 
     const args = [];
 
@@ -76,7 +52,7 @@ function runCodexTurn({
     }
 
     args.push("--skip-git-repo-check");
-    args.push("--output-last-message", outputPath);
+    args.push("--json");
     args.push("--color", "never");
     args.push("--model", model);
     args.push("--context-window", String(contextWindow));
@@ -94,9 +70,40 @@ function runCodexTurn({
 
     let stdout = "";
     let stderr = "";
+    let stdoutBuffer = "";
+    let resolvedSessionId = sessionId || null;
+    const replyParts = [];
 
     child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString("utf8");
+      const text = chunk.toString("utf8");
+      stdout += text;
+      stdoutBuffer += text;
+
+      let newlineIndex = stdoutBuffer.indexOf("\n");
+      while (newlineIndex !== -1) {
+        const line = stdoutBuffer.slice(0, newlineIndex).trim();
+        stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
+
+        if (line.startsWith("{") && line.endsWith("}")) {
+          try {
+            const event = JSON.parse(line);
+            if (event.type === "thread.started" && event.thread_id) {
+              resolvedSessionId = event.thread_id;
+            }
+            if (
+              event.type === "item.completed" &&
+              event.item &&
+              event.item.type === "agent_message" &&
+              typeof event.item.text === "string" &&
+              event.item.text.length > 0
+            ) {
+              replyParts.push(event.item.text);
+            }
+          } catch {}
+        }
+
+        newlineIndex = stdoutBuffer.indexOf("\n");
+      }
     });
 
     child.stderr.on("data", (chunk) => {
@@ -107,27 +114,19 @@ function runCodexTurn({
 
     child.on("close", (code) => {
       const afterIndex = readSessionIndex(codexHome);
-      let reply = "";
+      let reply = replyParts.join("");
 
-      try {
-        reply = sanitizeOutput(fs.readFileSync(outputPath, "utf8"));
-      } catch (error) {
-        if (error.code !== "ENOENT") {
-          return reject(error);
+      if (!resolvedSessionId) {
+        const beforeIds = new Set(beforeIndex.map((entry) => entry.id));
+        const directMatch = afterIndex.find((entry) => !beforeIds.has(entry.id));
+        if (directMatch) {
+          resolvedSessionId = directMatch.id;
         }
-      } finally {
-        try {
-          fs.unlinkSync(outputPath);
-        } catch {}
       }
 
-      const resolvedSessionId =
-        sessionId ||
-        resolveSessionId(
-          beforeIndex,
-          afterIndex,
-          beforeIndex.map((entry) => entry.id),
-        );
+      if (!reply) {
+        reply = sanitizeOutput(stdoutBuffer) || sanitizeOutput(stdout);
+      }
 
       if (code !== 0) {
         const error = new Error(

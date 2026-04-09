@@ -18,6 +18,7 @@ This harness is intentionally thin:
 - Model selection is passed through Codex's native `--model` flag.
 - Context length is passed through Codex's native config override path with `-c model_context_window=...`.
 - All other arguments are forwarded unchanged to `codex`.
+- By default the harness uses its own local `CODEX_HOME` under `.local/codex-home` so local Ollama sessions are not mixed with cloud-backed Codex sessions.
 
 This preserves Codex-native behavior:
 
@@ -86,6 +87,7 @@ Precedence:
 - It depends on a local Ollama installation and a running Ollama service.
 - `model_context_window` configures Codex's context budgeting. The selected Ollama model must also be able to serve that context size.
 - Capability retention means Codex-side features stay available. Actual quality of tool use still depends on the local model.
+- `codex exec resume` does not accept `--oss` / `--local-provider`, so the harness only allows it inside a harness-managed local `CODEX_HOME`. This avoids falling back to cloud-backed sessions.
 
 ## Verification Plan
 

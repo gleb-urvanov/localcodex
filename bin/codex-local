@@ -4,6 +4,8 @@ set -euo pipefail
 
 DEFAULT_MODEL="qwen3.5:9b"
 DEFAULT_CONTEXT_WINDOW="8192"
+DEFAULT_LOCAL_HOME="$(pwd -P)/.local/codex-home"
+LOCAL_HOME_MARKER=".codex-local-ollama-home"
 
 model="${CODEX_OLLAMA_MODEL:-$DEFAULT_MODEL}"
 context_window="${CODEX_CONTEXT_WINDOW:-$DEFAULT_CONTEXT_WINDOW}"
@@ -78,7 +80,83 @@ if [[ -z "$codex_bin" ]]; then
   exit 127
 fi
 
-declare -a cmd=("$codex_bin" "--oss" "--local-provider" "ollama")
+if [[ -z "${CODEX_HOME:-}" ]]; then
+  export CODEX_HOME="${CODEX_LOCAL_HOME:-$DEFAULT_LOCAL_HOME}"
+fi
+
+mkdir -p "$CODEX_HOME"
+marker_path="$CODEX_HOME/$LOCAL_HOME_MARKER"
+
+nested_subcommands_for() {
+  case "$1" in
+    exec)
+      echo "resume review help"
+      ;;
+    features)
+      echo "list help"
+      ;;
+    mcp|cloud|completion|sandbox)
+      echo "help"
+      ;;
+    app-server)
+      echo "generate-ts generate-json-schema help"
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
+command_boundary=0
+inject_provider_flags=1
+
+if ((${#passthrough[@]} > 0)); then
+  first_arg="${passthrough[0]}"
+  case "$first_arg" in
+    exec)
+      command_boundary=1
+      nested_commands="$(nested_subcommands_for "$first_arg")"
+      if [[ -n "$nested_commands" ]] && ((${#passthrough[@]} > 1)); then
+        second_arg="${passthrough[1]}"
+        for nested in $nested_commands; do
+          if [[ "$second_arg" == "$nested" ]]; then
+            command_boundary=2
+            if [[ "$second_arg" == "resume" ]]; then
+              inject_provider_flags=0
+            fi
+            break
+          fi
+        done
+      fi
+      ;;
+    review|resume)
+      command_boundary=1
+      ;;
+    login|logout|mcp|mcp-server|app-server|completion|sandbox|apply|cloud|features|help)
+      command_boundary=1
+      inject_provider_flags=0
+      ;;
+  esac
+fi
+
+declare -a cmd=("$codex_bin")
+
+if ((command_boundary > 0)); then
+  for ((i = 0; i < command_boundary; i++)); do
+    cmd+=("${passthrough[$i]}")
+  done
+fi
+
+if ((inject_provider_flags == 0)) && [[ ! -f "$marker_path" ]]; then
+  echo "codex-local: exec resume requires a harness-managed CODEX_HOME to avoid resuming cloud-backed sessions" >&2
+  echo "Set CODEX_HOME to the same local home previously used by codex-local, or start a new local conversation first." >&2
+  exit 2
+fi
+
+if ((inject_provider_flags == 1)); then
+  cmd+=("--oss" "--local-provider" "ollama")
+  : >"$marker_path"
+fi
 
 has_model_flag=0
 has_context_override=0
@@ -98,7 +176,7 @@ for ((i = 0; i < ${#passthrough[@]}; i++)); do
         next_arg="${passthrough[$((i + 1))]}"
         if [[ "$next_arg" == model_context_window=* ]]; then
           has_context_override=1
-        elif [[ "$next_arg" == model_provider=* || "$next_arg" == oss_provider=* ]]; then
+        elif [[ "$next_arg" == model_provider=* || "$next_arg" == oss_provider=* || "$next_arg" == model_providers.* ]]; then
           echo "codex-local: provider overrides are not allowed in this harness" >&2
           exit 2
         fi
@@ -108,7 +186,7 @@ for ((i = 0; i < ${#passthrough[@]}; i++)); do
       inline_config="${arg#*=}"
       if [[ "$inline_config" == model_context_window=* ]]; then
         has_context_override=1
-      elif [[ "$inline_config" == model_provider=* || "$inline_config" == oss_provider=* ]]; then
+      elif [[ "$inline_config" == model_provider=* || "$inline_config" == oss_provider=* || "$inline_config" == model_providers.* ]]; then
         echo "codex-local: provider overrides are not allowed in this harness" >&2
         exit 2
       fi
@@ -116,14 +194,16 @@ for ((i = 0; i < ${#passthrough[@]}; i++)); do
   esac
 done
 
-if ((has_model_flag == 0)); then
+if ((inject_provider_flags == 1 && has_model_flag == 0)); then
   cmd+=("--model" "$model")
 fi
 
-if ((has_context_override == 0)); then
+if ((inject_provider_flags == 1 && has_context_override == 0)); then
   cmd+=("-c" "model_context_window=$context_window")
 fi
 
-cmd+=("${passthrough[@]}")
+for ((i = command_boundary; i < ${#passthrough[@]}; i++)); do
+  cmd+=("${passthrough[$i]}")
+done
 
 exec "${cmd[@]}"

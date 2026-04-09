@@ -22,6 +22,7 @@ Any normal text message is sent to the active conversation.
 ## Session Model
 
 The bot keeps its own per-chat conversation registry in `.local/telegram-bot/state.json`.
+Codex sessions used by the bot live in a separate local `CODEX_HOME`, so bot conversations do not attach to cloud-backed Codex sessions.
 
 Each bot conversation stores:
 
@@ -37,6 +38,7 @@ When a conversation has no linked Codex session yet, the first user message star
 - Telegram transport uses long polling via the Bot API.
 - Bot turns are serialized through a single in-process queue so session creation stays deterministic.
 - Codex is invoked through `bin/codex-local`, not through a reimplemented agent loop.
+- Bot replies are assembled from Codex `--json` event output because local Ollama runs may leave `--output-last-message` empty.
 
 ## Required Environment
 
