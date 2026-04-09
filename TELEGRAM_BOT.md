@@ -45,6 +45,8 @@ When a conversation has no linked Codex session yet, the first user message star
 
 - `TELEGRAM_BOT_TOKEN`
 
+The bot auto-loads `.env` from the project root if present.
+
 Optional:
 
 - `TELEGRAM_ALLOWED_CHAT_IDS`

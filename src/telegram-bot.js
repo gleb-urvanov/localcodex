@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const crypto = require("node:crypto");
+const fs = require("node:fs");
 const path = require("node:path");
 
 const {
@@ -14,6 +15,45 @@ const {
 const { runCodexTurn } = require("./lib/codex");
 
 const ROOT = path.resolve(__dirname, "..");
+
+function loadDotEnv(dotEnvPath) {
+  try {
+    const content = fs.readFileSync(dotEnvPath, "utf8");
+    for (const rawLine of content.split("\n")) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) {
+        continue;
+      }
+
+      const separatorIndex = line.indexOf("=");
+      if (separatorIndex === -1) {
+        continue;
+      }
+
+      const key = line.slice(0, separatorIndex).trim();
+      if (!key || process.env[key] !== undefined) {
+        continue;
+      }
+
+      let value = line.slice(separatorIndex + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+
+      process.env[key] = value;
+    }
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+}
+
+loadDotEnv(path.join(ROOT, ".env"));
+
 const BOT_ROOT = path.join(ROOT, ".local", "telegram-bot");
 const DATA_DIR = process.env.CODEX_TELEGRAM_DATA_DIR || path.join(BOT_ROOT, "data");
 const STATE_PATH = path.join(DATA_DIR, "state.json");
@@ -50,6 +90,8 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
       "",
       "Run:",
       "  npm run telegram:bot",
+      "",
+      "The bot auto-loads .env from the project root if present.",
     ].join("\n"),
   );
   process.exit(0);

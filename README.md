@@ -69,6 +69,7 @@ npm run telegram:bot
 - You still need Ollama installed locally and the selected model available.
 - Telegram support is implemented in [src/telegram-bot.js](/Users/gleburvanov/Workspace/localcodex/src/telegram-bot.js).
 - The Telegram bot defaults to isolated project-local paths under `.local/telegram-bot/` for workspace, data, and Codex home.
+- The Telegram bot auto-loads `.env` from the project root.
 
 See [LOCAL_OLLAMA_CODEX_SYSTEM.md](/Users/gleburvanov/Workspace/localcodex/LOCAL_OLLAMA_CODEX_SYSTEM.md) for the structure and design.
 See [TELEGRAM_BOT.md](/Users/gleburvanov/Workspace/localcodex/TELEGRAM_BOT.md) for Telegram bot behavior.
